@@ -1,5 +1,9 @@
+import datetime
+import json
 import os
 import dotenv
+import sqlite3
+from utils import *
 
 # GENERAL
 
@@ -21,13 +25,15 @@ def setup():
             k, v = var.split("=")
             env[k] = v
 
-        env["key"] = key
-        env["token"] = token
+        env["API_KEY"] = key+"\n"
+        env["API_TOKEN"] = token+"\n"
 
+        e.seek(0)
         e.truncate()
         for k, v in env.items():
             e.writelines(k+"="+v)
 
+    print("Credentials updated")
 
 def refresh():
     return
