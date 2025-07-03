@@ -35,6 +35,16 @@ def setup():
 
     print("Credentials updated")
 
+    try:
+        conn = sqlite3.connect('my_database.db')
+        conn.close()
+        print("Local DB connection working")
+    except Exception as e:
+        raise (e)
+
+    return
+
+
 def refresh():
     return
 
