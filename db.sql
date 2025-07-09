@@ -1,4 +1,5 @@
-create table boards if not exists (
+
+create table if not exists boards (
     id varchar(30) not null PRIMARY KEY,
     name varchar(55) not null,
     desc varchar(255) null,
@@ -7,24 +8,24 @@ create table boards if not exists (
     url VARCHAR(255) not null
 );
 
-create table members if not exists (
-    idBoard varchar(30) not null FOREIGN key REFERENCES boards(id),
+create table if not exists members (
+    idBoard varchar(30) not null REFERENCES boards(id) on update cascade on delete cascade,
     id varchar(30) not null,
     fullName VARCHAR(180) not null,
     username VARCHAR(180) not null,
-    constraint members_pk PRIMARY KEY (idBoard, id)
+    PRIMARY KEY (idBoard, id)
 );
 
-create table lists if not exists (
-    idBoard varchar(30) not null FOREIGN key REFERENCES boards(id),
-    id varchar(30) not null PRIMARY KEY,
+create table if not exists lists (
+    idBoard varchar(30) not null REFERENCES boards(id) on update cascade on delete cascade,
+    id varchar(30) not null,
     name varchar(55) not null,
     closed boolean not null,
-    constraint members_pk PRIMARY KEY (idBoard, id)
+    PRIMARY KEY (idBoard, id)
 ); 
 
-create table cards if not exists (
-    idList varchar(30) not null FOREIGN key REFERENCES boards(id),
+create table if not exists cards (
+    idList varchar(30) not null REFERENCES boards(id) on update cascade on delete cascade,
     id varchar(30) not null,
     name VARCHAR(255) not null,
     desc text null,
@@ -33,13 +34,13 @@ create table cards if not exists (
     dateLastActivity TIMESTAMP,
     labels string,
     url VARCHAR(255) not null,
-    constraint members_pk PRIMARY KEY (idList, id)
+    PRIMARY KEY (idList, id)
 );
 
-create table comments if not exists (
+create table if not exists comments (
     id varchar(30) not null PRIMARY KEY,
-    idCard varchar(30) not null FOREIGN key REFERENCES boards(id),
-    idMemberCreator varchar(30) not null FOREIGN key REFERENCES members(id),
+    idCard varchar(30) not null REFERENCES boards(id) on update cascade on delete cascade,
+    idMemberCreator varchar(30) not null REFERENCES members(id) on update cascade on delete cascade,
     text text NOT null,
     date TIMESTAMP not null
 );
