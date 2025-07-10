@@ -126,7 +126,7 @@ def get_boards():
 def board_list(data=None):
     if not data: 
         data = get_boards()
-    for index, board in enumerate(data):        # print(index, ": ", board[1], "|", board[2], "closed", board[3])
+    for index, board in enumerate(data):
         print(f'{index:3d} | {board[1][:30]:30} | {board[2][:45]:45} | Closed:{board[3]}')
     return
 
@@ -155,12 +155,171 @@ def board_update(args):
     
     board_refresh(board_id, True)
 
+# LIST
 
-def list_all_card(args):
+def list_default(args):
+    board_list = [os.getenv("DEFAULT_BOARD")]
+    if args.all:
+        bs = get_boards()
+        board_list = [b[0] for b in bs]
+
+    lists = get_list(board_list)
+
+    if args.show:
+        list_list(lists)
+    if args.change:
+        print("Available lists:")
+        list_list(lists)
+        index = int(input("Choose default list (index): "))
+        
+        setup(args,"DEFAULT_LIST", lists[index][0])
+
+
+def list_refresh(board_list=[]):
+    for board in board_list:
+        print("Fetching Lists...")
+        json_data = api("GET", f"/1/boards/{board}/lists")
+        print("Saving Lists..")
+
+        query = """
+        insert into lists(idBoard, id, name, closed)
+        values(?,?,?,?)
+        """
+        with sqlite3.connect('db.db') as conn:
+            cursor = conn.cursor()
+            for card_list in json_data:
+                try:
+                    cursor.execute(
+                        query,(
+                        board,
+                        card_list.get("id"),
+                        card_list.get("name"),
+                        card_list.get("closed"),)
+                    )
+                except sqlite3.IntegrityError as e:
+                    if e == "UNIQUE constraint failed: lists.idBoard, lists.id":
+                        cursor.execute("""
+                        update lists
+                            set 
+                                name = ?,
+                                closed = ?
+                        where 
+                            id = ?
+                            and idBoard = ?
+                        """,(
+                            card_list.get("name"),
+                            card_list.get("closed"),
+                            card_list.get("id"),
+                            board,
+                        ))
+        print("Lists saved successfully!")
+
+def get_list(board_list=[]):
+    if len(board_list) == 0:
+        board_list = [os.getenv("DEFAULT_BOARD")]
+    query = """
+    select 
+        l.idBoard,
+        l.id,
+        l.name,
+        l.closed,
+        b.name as board
+    from lists l
+    join boards b on b.id = l.idBoard 
+    where b.id in (%s)
+    """
+    with sqlite3.connect('db.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute(query %','.join('?'*len(board_list)),  board_list)
+        data = cursor.fetchall()
     
+    return data
+
+def list_get_cards(list_list):
+    query = """
+    select 
+        l.idBoard,
+        c.idList,
+        c.id,
+        c.name,
+        c.desc,
+        c.due,
+        c.close,
+        c.dateLasActivity,
+        c.labels,
+        l.name list
+        b.name as board
+    from cards c
+    join lists l on c.idList = l.id
+    join boards b on b.id = l.idBoard 
+    where c.idList in (%s)
+    """
+    with sqlite3.connect('db.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute(query%','.join('?'*len(list_list)),list_list)
+        data = cursor.fetchall()
+    
+    return data
+
+def list_processor(args):
+    board_list = [os.getenv("DEFAULT_BOARD")]
+    if args.update:
+        cards_refresh(board_list)
+    
+    if args.all:
+        boards = get_boards()
+        board_list = [b[0] for b in boards]
+    list_list = get_list(board_list)
+    
+    if not args.wide:
+        default_list = os.getenv("DEFAULT_LIST")
+        if default_list != "":
+            list_list = [l for l in list_list if l[1]==default_list]
+
+    if args.cards:
+        list_all_cards(list_get_cards(list_list))
+
+
+def list_list(data=None):
+    if not data: 
+        bs = get_boards()
+        board_list = [b[0] for b in bs]
+        data = get_list(board_list)
+    for index, l in enumerate(data):
+        print(f'{index:3d} | List:{l[2][:30]:30} | Board:{l[4][:30]:30} | Closed:{l[3]}')
     return
 
+def list_all_cards(data=[]):
+    if not data: 
+        data = list_get_cards([os.getenv("DEFAULT_LIST")])
+    for index, c in enumerate(data):
+        print("|"+"-"*29+f"{index}"+"-"*30+"|")
+        print("|"+f"{c[3][:60]:60}"+"|")
+        print("|"+f"{c[4][:60]:60}"+"|")
+        print("|"+f"Due: {c[4]:30} Closed: {c[5]:17}"+"|")
+        print("|"+f"Last: {c[5]:54}"+"|")
+        print("|"+f"{c[6]:60}"+"|")
+        print("|"+f"List: {c[7]:23} Board: {c[8]:23}"+"|")
+        print("|"+"-"*60+"|")
+    return
+
+
+
+def list_add(args):
+    return
+
+
+def list_move(args):
+    return
+
+
+def list_remove(args):
+    return
+
+
 # CARD
+
+
 
 def cards_refresh(board_list=[], drill=False):
     card_list = []
@@ -231,58 +390,6 @@ def checklist_remove_from(args):
 
 
 def checklist_flip_check_from(args):
-    return
-
-# LIST
-
-def list_refresh(board_list=[]):
-    for board in board_list:
-        print("Fetching Lists...")
-        json_data = api("GET", f"/1/boards/{board}/lists")
-        print("Saving Lists..")
-
-        query = """
-        insert into lists(idBoard, id, name, closed)
-        values(?,?,?,?)
-        """
-        with sqlite3.connect('db.db') as conn:
-            cursor = conn.cursor()
-            for card_list in json_data:
-                try:
-                    cursor.execute(
-                        query,(
-                        board,
-                        card_list.get("id"),
-                        card_list.get("name"),
-                        card_list.get("closed"),)
-                    )
-                except sqlite3.IntegrityError as e:
-                    if e == "UNIQUE constraint failed: lists.idBoard, lists.id":
-                        cursor.execute("""
-                        update lists
-                            set 
-                                name = ?,
-                                closed = ?
-                        where 
-                            id = ?
-                            and idBoard = ?
-                        """,(
-                            card_list.get("name"),
-                            card_list.get("closed"),
-                            card_list.get("id"),
-                            board,
-                        ))
-        print("Lists saved successfully!")
-
-def list_add(args):
-    return
-
-
-def list_move(args):
-    return
-
-
-def list_remove(args):
     return
 
 
